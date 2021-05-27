@@ -334,30 +334,15 @@ def _region_all_pipeline(region):
             pipe(final_data_transform, region)
 
 
-def _download_csv_save(df):
+def _download_csv_save(df, aws_filepath):
     """Saves download-version of data to a csv."""
     df.to_csv(c.filenamer('data/mpj_download.csv'), index=False)
+    if aws_filepath:
+        df.to_csv(f'{aws_filepath}/mpj_download.csv', index=False)
     return df
 
 
 def _download_to_alley_formatter(df, outcome):
-    """
-    Format data of a given outcome to be suitable for upload to the Kauffman website.
-
-    Parameters
-    ----------
-    df : DataFrame
-        The data to be formatted
-
-    outcome : str
-        The column name of the outcome whose values become the cells of the dataframe
-
-    Returns
-    -------
-    DataFrame
-        Formatted data
-    """
-
     return df[['fips', 'year', 'type', 'category'] + [outcome]].\
         pipe(pd.pivot_table, index=['fips', 'type', 'category'], columns='year', values=outcome).\
         reset_index().\
@@ -365,13 +350,13 @@ def _download_to_alley_formatter(df, outcome):
         rename(columns={'type': 'demographic-type', 'category': 'demographic', 'fips': 'region'})
 
 
-def _website_csvs_save(df):
-    """Format and save csv of data to be uploaded to the website."""
+def _website_csvs_save(df, aws_filepath):
     for indicator in ['contribution', 'compensation', 'constancy', 'creation', 'q2_index']:
-        df.\
-            pipe(_download_to_alley_formatter, indicator). \
-            to_csv(c.filenamer(f'data/mpj_website_{indicator}.csv'), index=False)
+        df_out = df.pipe(_download_to_alley_formatter, indicator)
 
+        df_out.to_csv(c.filenamer(f'data/mpj_website_{indicator}.csv'), index=False)
+        if aws_filepath:
+            df_out.to_csv(f'{aws_filepath}/mpj_website_{indicator}.csv', index=False)
 
 def _raw_data_remove(remove_data=True):
     if remove_data:
