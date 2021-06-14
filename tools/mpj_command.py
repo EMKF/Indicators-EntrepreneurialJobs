@@ -19,6 +19,7 @@ pd.set_option('chained_assignment',None)
 
 
 def _format_csv(df):
+    print(df.head())
     return df. \
         astype({'fips': 'str', 'time': 'int'})
 
@@ -29,8 +30,7 @@ def _fetch_data_earnbeg_us(fetch_data):
             [['time', 'EarnBeg']]. \
             rename(columns={'EarnBeg': 'EarnBeg_us'})
     else:
-        df = pd.read_csv(c.filenamer(f'data/raw_data/earnbeg_us.csv')).\
-            pipe(_format_csv)
+        df = pd.read_csv(c.filenamer(f'data/raw_data/earnbeg_us.csv')).astype({'time': 'int'})
     joblib.dump(df, c.filenamer(f'data/temp/earnbeg_us.pkl'))
 
 
@@ -40,7 +40,7 @@ def _fetch_data_qwi(region, fetch_data):
         df = qwi(obs_level=region)
     else:
         df = pd.read_csv(c.filenamer(f'data/raw_data/qwi_{region}.csv')). \
-            pipe(_format_csv)
+            astype({'fips': 'str', 'time': 'int'})
     joblib.dump(df, c.filenamer(f'data/temp/qwi_{region}.pkl'))
 
 
@@ -52,7 +52,7 @@ def _fetch_data_pep(region, fetch_data):
             astype({'time': 'int', 'population': 'int'})
     else:
         df = pd.read_csv(c.filenamer(f'data/raw_data/pep_{region}.csv')). \
-            pipe(_format_csv)
+            astype({'fips': 'str', 'time': 'int'})
     joblib.dump(df, c.filenamer(f'data/temp/pep_{region}.pkl'))
 
 
@@ -71,11 +71,6 @@ def _raw_data_merge(region):
     return joblib.load(c.filenamer(f'data/temp/qwi_{region}.pkl')). \
         merge(joblib.load(c.filenamer(f'data/temp/pep_{region}.pkl')).drop('region', 1), how='left', on=['fips', 'time']).\
         merge(joblib.load(c.filenamer(f'data/temp/earnbeg_us.pkl')), how='left', on='time')
-
-# todo: get qwi and pep functions working
-
-
-
 
 
 def _goalpost(df, index_vars):
@@ -125,7 +120,7 @@ def _aggregator(df, index_vars):
     return df.drop(list(map(lambda x: x + '_normed', index_vars)), 1)
 
 
-def _index_create(df, base_year, region):
+def _index_create(df, region):
     """
     Create the composite index.
 
@@ -145,7 +140,7 @@ def _index_create(df, base_year, region):
     DataFrame
         The indexed data
     """
-    print('\t...index1 create...')
+    print('\t...index create...')
     # create a df that is just a "young" firms age category
     df_ref = df. \
         astype({'firmage': 'int'}).\
@@ -163,10 +158,18 @@ def _index_create(df, base_year, region):
 
     print('\t...goalposting...')
     # tee up goalposting
+    base_year = c.qwi_start_year
     index_vars_dict = c.index_vars_dict
-    for indicator in ['contribution', 'compensation', 'constancy']:
+    for indicator in index_vars_dict.keys():  #['contribution', 'compensation', 'constancy']:
         index_vars_dict[indicator]['delta'] = (df_ref[indicator].max() - df_ref[indicator].min()) / 2
-        index_vars_dict[indicator]['ref'] = df_ref[indicator].mean() if region == 'us' else df_ref.query('time == "{base_year}"'.format(base_year=base_year))[indicator].mean()
+        index_vars_dict[indicator]['ref'] = df_ref[indicator].mean() if region == 'us' else df_ref.query(f'time == "{base_year}"')[indicator].mean()
+    # todo: I'm pretty sure we don't want to use these statistics for msa and county.
+    # todo: how about just using US, like KESE
+    #   use US mean as ref
+    #   can't use US min max though, because there is way too much variance
+    #       but using region specific min and max, we can't compare across regions, or can we?
+    # constancy zero values makes the min max wrong
+
 
     # calculate index
     print('\t...calc index...')
@@ -186,9 +189,7 @@ def _missing_obs(df):
     return df
 
 
-def _indicators_create(df, region, us_med, start_year, end_year):
-    # todo: how to deal with us_med
-    # todo: do I need start_year, end_year?
+def _indicators_create(df, region):
     """
     Calculate the four indicators and the index.
 
@@ -215,14 +216,17 @@ def _indicators_create(df, region, us_med, start_year, end_year):
         Indicators data
     """
     print('indicators_create...')
+
+    # print(df[['time', 'fips', 'region']].groupby(['fips', 'region']).agg({'time': ['min', 'max']}))  # for seeing min and max year by state
+    # sys.exit()
+
     return df.\
-        query('{start_year} <= time <= {end_year}'.format(start_year=start_year, end_year=end_year)). \
+        query(f'{c.qwi_start_year} <= time <= {c.qwi_end_year}'). \
         assign(
             # tee up values: I return a nan instead of the total if all age categories are not reported.
             emp_mid=lambda x: (x['Emp'] + x['EmpEnd']) / 2,
-            total_emp=lambda x: x[['emp_mid', 'fips', 'time']].groupby(['fips', 'time']).transform(lambda y: y.sum() if y.shape[0] == 5 else np.nan),
+            total_emp=lambda x: x[['emp_mid', 'fips', 'time']].groupby(['fips', 'time']).transform(lambda y: y.sum() if y.count() == 5 else np.nan),
         ).\
-        merge(us_med, how='left', on='time').\
         assign(
             # indicators create
             contribution=lambda x: x['emp_mid'] / x['total_emp'],
@@ -234,7 +238,7 @@ def _indicators_create(df, region, us_med, start_year, end_year):
         pipe(
         # composite indicator create
             lambda x: x.merge(
-                _index_create(x, base_year=start_year, region=region),
+                _index_create(x, region=region),
                 how='left',
                 on=['fips', 'time']
             )
@@ -330,7 +334,7 @@ def final_data_transform(df, region):
 
 def _region_all_pipeline(region):
     return _raw_data_merge(region).\
-            pipe(_indicators_create, region, 2004, 2017).\
+            pipe(_indicators_create, region).\
             pipe(final_data_transform, region)
 
 
@@ -374,7 +378,7 @@ def mpj_data_create_all(raw_data_fetch, raw_data_remove, aws_filepath=None):
 
     pd.concat(
         [
-            _region_all_pipeline(region) for region in ['county', 'msa', 'state', 'us']
+            _region_all_pipeline(region) for region in ['county', 'msa', 'state', 'us']  # ['us']  #
         ],
         axis=0
     ).\
@@ -388,6 +392,6 @@ if __name__ == '__main__':
     mpj_data_create_all(
         raw_data_fetch=False,
         raw_data_remove=True,
-        aws_filepath='s3://emkf.data.research/indicators/neb/data_outputs/'
+        aws_filepath='s3://emkf.data.research/indicators/mpj/data_outputs/'
     )
 

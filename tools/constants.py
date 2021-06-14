@@ -199,6 +199,9 @@ index_vars_dict = {
     'constancy': {'polarity': 'pos'}
 }
 
+qwi_start_year = 2004
+qwi_end_year = 2019
+
 age_category_dict = {
     0: 'Total',
     1: 'Ages 0 to 1',
