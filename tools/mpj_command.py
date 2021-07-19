@@ -123,24 +123,7 @@ def _aggregator(df, index_vars):
 def _index_create(df, region):
     """
     Create the composite index.
-
-    Parameters
-    ----------
-    df : DataFrame
-        The data to which to add an index
-
-    base_year : int
-        ??
-
-    region : str
-        The geographical level of the data. Options: 'US' or 'state'
-
-    Returns
-    -------
-    DataFrame
-        The indexed data
     """
-    print('\t...index create...')
     # create a df that is just a "young" firms age category
     df_ref = df. \
         astype({'firmage': 'int'}).\
@@ -156,23 +139,23 @@ def _index_create(df, region):
         ).\
         pipe(_missing_obs)
 
-    print('\t...goalposting...')
-    # tee up goalposting
-    base_year = c.qwi_start_year
-    index_vars_dict = c.index_vars_dict
-    for indicator in index_vars_dict.keys():  #['contribution', 'compensation', 'constancy']:
-        index_vars_dict[indicator]['delta'] = (df_ref[indicator].max() - df_ref[indicator].min()) / 2
-        index_vars_dict[indicator]['ref'] = df_ref[indicator].mean() if region == 'us' else df_ref.query(f'time == "{base_year}"')[indicator].mean()
-    # todo: I'm pretty sure we don't want to use these statistics for msa and county.
-    # todo: how about just using US, like KESE
-    #   use US mean as ref
-    #   can't use US min max though, because there is way too much variance
-    #       but using region specific min and max, we can't compare across regions, or can we?
-    # constancy zero values makes the min max wrong
+    if region == 'county':
+        return df_ref. \
+            drop_duplicates(['fips', 'time'], keep='first'). \
+            reset_index(drop=True). \
+            assign(q2_index=np.nan) \
+            [['fips', 'time', 'q2_index']]
 
+    elif region == 'us':
+        df_temp = df_ref.query('1996 <= time <= 2015')
+        index_vars_dict = c.index_vars_dict
+        for indicator in index_vars_dict.keys():  # ['contribution', 'compensation', 'constancy']:
+            index_vars_dict[indicator]['delta'] = (df_temp[indicator].max() - df_temp[indicator].min()) / 2
+            index_vars_dict[indicator]['ref'] = df_temp[indicator].mean()
+        joblib.dump(index_vars_dict, c.filenamer('data/temp/index_vars_dict'))
+    else:
+        index_vars_dict = joblib.load(c.filenamer('data/temp/index_vars_dict'))
 
-    # calculate index
-    print('\t...calc index...')
     return df_ref. \
         pipe(_goalpost, index_vars_dict). \
         pipe(_aggregator, index_vars_dict).\
@@ -220,8 +203,9 @@ def _indicators_create(df, region):
     # print(df[['time', 'fips', 'region']].groupby(['fips', 'region']).agg({'time': ['min', 'max']}))  # for seeing min and max year by state
     # sys.exit()
 
+    # return df.\
+    #     query(f'{c.qwi_start_year} <= time <= {c.qwi_end_year}'). \
     return df.\
-        query(f'{c.qwi_start_year} <= time <= {c.qwi_end_year}'). \
         assign(
             # tee up values: I return a nan instead of the total if all age categories are not reported.
             emp_mid=lambda x: (x['Emp'] + x['EmpEnd']) / 2,
@@ -340,7 +324,8 @@ def _region_all_pipeline(region):
 
 def _download_csv_save(df, aws_filepath):
     """Saves download-version of data to a csv."""
-    df.to_csv(c.filenamer('data/mpj_download.csv'), index=False)
+    df.to_csv(c.filenamer('data/mpj_download2.csv'), index=False)
+    sys.exit()
     if aws_filepath:
         df.to_csv(f'{aws_filepath}/mpj_download.csv', index=False)
     return df
@@ -378,7 +363,9 @@ def mpj_data_create_all(raw_data_fetch, raw_data_remove, aws_filepath=None):
 
     pd.concat(
         [
-            _region_all_pipeline(region) for region in ['county', 'msa', 'state', 'us']  # ['us']  #
+            # _region_all_pipeline(region) for region in ['county', 'msa', 'state', 'us']  # ['us']  #
+            # _region_all_pipeline(region) for region in ['us', 'state', 'msa', 'county']
+            _region_all_pipeline(region) for region in ['us', 'state', 'msa']
         ],
         axis=0
     ).\
@@ -392,6 +379,6 @@ if __name__ == '__main__':
     mpj_data_create_all(
         raw_data_fetch=False,
         raw_data_remove=True,
-        aws_filepath='s3://emkf.data.research/indicators/mpj/data_outputs/'
+        # aws_filepath='s3://emkf.data.research/indicators/mpj/data_outputs'
     )
 

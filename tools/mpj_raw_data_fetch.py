@@ -22,7 +22,7 @@ def raw_data_update():
         [['time', 'EarnBeg']]. \
         rename(columns={'EarnBeg': 'EarnBeg_us'}). \
         apply(pd.to_numeric). \
-        to_csv(c.filenamer(f'data/raw_data/earnbeg_us.csv'), index=False)
+        to_csv(c.filenamer('data/raw_data/earnbeg_us.csv'), index=False)
 
     # for region in ['msa', 'county']:
     for region in ['us', 'state', 'msa', 'county']:

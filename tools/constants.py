@@ -1,11 +1,9 @@
 import os
 import geonamescache
 
-
 def filenamer(path):
     ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
     return os.path.join(ROOT_DIR, '../' + path)
-
 
 msa_state_dic = {
     '12060': ['13'],
@@ -199,9 +197,6 @@ index_vars_dict = {
     'constancy': {'polarity': 'pos'}
 }
 
-qwi_start_year = 2004
-qwi_end_year = 2019
-
 age_category_dict = {
     0: 'Total',
     1: 'Ages 0 to 1',
@@ -211,3 +206,6 @@ age_category_dict = {
     5: 'Ages 11+'
 }
 
+## constants to update
+# qwi_start_year = 2004
+# qwi_end_year = 2019
