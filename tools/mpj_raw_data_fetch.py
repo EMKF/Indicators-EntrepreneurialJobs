@@ -24,7 +24,6 @@ def raw_data_update():
         apply(pd.to_numeric). \
         to_csv(c.filenamer('data/raw_data/earnbeg_us.csv'), index=False)
 
-    # for region in ['msa', 'county']:
     for region in ['us', 'state', 'msa', 'county']:
         qwi(['Emp', 'EmpEnd', 'EarnBeg', 'EmpS', 'EmpTotal', 'FrmJbC'], obs_level=region, private=True, strata=['firmage'], annualize=True).\
             to_csv(c.filenamer(f'data/raw_data/qwi_{region}.csv'), index=False)

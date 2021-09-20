@@ -146,15 +146,21 @@ def _index_create(df, region):
             assign(q2_index=np.nan) \
             [['fips', 'time', 'q2_index']]
 
-    elif region == 'us':
+    else:
         df_temp = df_ref.query('1996 <= time <= 2015')
         index_vars_dict = c.index_vars_dict
         for indicator in index_vars_dict.keys():  # ['contribution', 'compensation', 'constancy']:
             index_vars_dict[indicator]['delta'] = (df_temp[indicator].max() - df_temp[indicator].min()) / 2
             index_vars_dict[indicator]['ref'] = df_temp[indicator].mean()
-        joblib.dump(index_vars_dict, c.filenamer('data/temp/index_vars_dict'))
-    else:
-        index_vars_dict = joblib.load(c.filenamer('data/temp/index_vars_dict'))
+    # elif region == 'us':
+    #     df_temp = df_ref.query('1996 <= time <= 2015')
+    #     index_vars_dict = c.index_vars_dict
+    #     for indicator in index_vars_dict.keys():  # ['contribution', 'compensation', 'constancy']:
+    #         index_vars_dict[indicator]['delta'] = (df_temp[indicator].max() - df_temp[indicator].min()) / 2
+    #         index_vars_dict[indicator]['ref'] = df_temp[indicator].mean()
+    #     joblib.dump(index_vars_dict, c.filenamer('data/temp/index_vars_dict'))
+    # else:
+    #     index_vars_dict = joblib.load(c.filenamer('data/temp/index_vars_dict'))
 
     return df_ref. \
         pipe(_goalpost, index_vars_dict). \
@@ -200,11 +206,6 @@ def _indicators_create(df, region):
     """
     print('indicators_create...')
 
-    # print(df[['time', 'fips', 'region']].groupby(['fips', 'region']).agg({'time': ['min', 'max']}))  # for seeing min and max year by state
-    # sys.exit()
-
-    # return df.\
-    #     query(f'{c.qwi_start_year} <= time <= {c.qwi_end_year}'). \
     return df.\
         assign(
             # tee up values: I return a nan instead of the total if all age categories are not reported.
@@ -220,13 +221,13 @@ def _indicators_create(df, region):
         ). \
         pipe(_missing_obs).\
         pipe(
-        # composite indicator create
             lambda x: x.merge(
                 _index_create(x, region=region),
                 how='left',
                 on=['fips', 'time']
             )
-        ) \
+        ). \
+        query(f'{c.qwi_start_year} <= time <= {c.qwi_end_year}') \
         [['fips', 'firmage', 'time', 'contribution', 'compensation', 'constancy', 'creation', 'q2_index']].\
         sort_values(['fips', 'time', 'firmage']).\
         reset_index(drop=True)
@@ -324,8 +325,7 @@ def _region_all_pipeline(region):
 
 def _download_csv_save(df, aws_filepath):
     """Saves download-version of data to a csv."""
-    df.to_csv(c.filenamer('data/mpj_download2.csv'), index=False)
-    sys.exit()
+    df.to_csv(c.filenamer('data/mpj_download.csv'), index=False)
     if aws_filepath:
         df.to_csv(f'{aws_filepath}/mpj_download.csv', index=False)
     return df
@@ -363,9 +363,7 @@ def mpj_data_create_all(raw_data_fetch, raw_data_remove, aws_filepath=None):
 
     pd.concat(
         [
-            # _region_all_pipeline(region) for region in ['county', 'msa', 'state', 'us']  # ['us']  #
-            # _region_all_pipeline(region) for region in ['us', 'state', 'msa', 'county']
-            _region_all_pipeline(region) for region in ['us', 'state', 'msa']
+            _region_all_pipeline(region) for region in ['us', 'state', 'msa', 'county']
         ],
         axis=0
     ).\
@@ -379,6 +377,6 @@ if __name__ == '__main__':
     mpj_data_create_all(
         raw_data_fetch=False,
         raw_data_remove=True,
-        # aws_filepath='s3://emkf.data.research/indicators/mpj/data_outputs'
+        aws_filepath='s3://emkf.data.research/indicators/mpj/data_outputs'
     )
 

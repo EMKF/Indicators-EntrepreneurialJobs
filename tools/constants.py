@@ -206,6 +206,5 @@ age_category_dict = {
     5: 'Ages 11+'
 }
 
-## constants to update
-# qwi_start_year = 2004
-# qwi_end_year = 2019
+qwi_start_year = 2004
+qwi_end_year = 2019
