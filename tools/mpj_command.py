@@ -375,7 +375,7 @@ def mpj_data_create_all(raw_data_fetch, raw_data_remove, aws_filepath=None):
 
 if __name__ == '__main__':
     mpj_data_create_all(
-        raw_data_fetch=False,
+        raw_data_fetch=True,
         raw_data_remove=True,
         aws_filepath='s3://emkf.data.research/indicators/mpj/data_outputs'
     )

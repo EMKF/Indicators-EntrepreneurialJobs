@@ -207,4 +207,4 @@ age_category_dict = {
 }
 
 qwi_start_year = 2004
-qwi_end_year = 2019
+qwi_end_year = 2020
