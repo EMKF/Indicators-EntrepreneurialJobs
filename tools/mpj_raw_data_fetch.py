@@ -12,7 +12,7 @@ pd.set_option('expand_frame_repr', False)
 pd.set_option('display.max_rows', 30000)
 pd.set_option('max_colwidth', 4000)
 pd.set_option('display.float_format', lambda x: '%.3f' % x)
-pd.set_option('chained_assignment',None)
+pd.set_option('chained_assignment', None)
 
 
 def raw_data_update():
@@ -25,7 +25,7 @@ def raw_data_update():
         to_csv(c.filenamer('data/raw_data/earnbeg_us.csv'), index=False)
 
     for region in ['us', 'state', 'msa', 'county']:
-        qwi(['Emp', 'EmpEnd', 'EarnBeg', 'EmpS', 'EmpTotal', 'FrmJbC'], obs_level=region, private=True, strata=['firmage'], annualize=True).\
+        qwi(['Emp', 'EmpEnd', 'EarnBeg', 'EmpS', 'EmpTotal', 'FrmJbC'], obs_level=region, private=True, firm_char=['firmage'], annualize=True).\
             to_csv(c.filenamer(f'data/raw_data/qwi_{region}.csv'), index=False)
 
         pep(region).\
