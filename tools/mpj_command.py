@@ -37,7 +37,7 @@ def _fetch_data_earnbeg_us(fetch_data):
 def _fetch_data_qwi(region, fetch_data):
     if fetch_data:
         print(f'\tcreating dataset neb/data/temp/qwi_{region}.pkl')
-        df = qwi(obs_level=region)
+        df = qwi(obs_level=region, firm_char=['firmage'])
     else:
         df = pd.read_csv(c.filenamer(f'data/raw_data/qwi_{region}.csv')). \
             astype({'fips': 'str', 'time': 'int'})
@@ -47,8 +47,8 @@ def _fetch_data_qwi(region, fetch_data):
 def _fetch_data_pep(region, fetch_data):
     if fetch_data:
         print(f'\tcreating dataset neb/data/temp/pep_{region}.pkl')
-        df = pep(region).\
-            rename(columns={'POP': 'population'}).\
+        df = pep(region). \
+            query('time > 1994'). \
             astype({'time': 'int', 'population': 'int'})
     else:
         df = pd.read_csv(c.filenamer(f'data/raw_data/pep_{region}.csv')). \
@@ -377,6 +377,6 @@ if __name__ == '__main__':
     mpj_data_create_all(
         raw_data_fetch=True,
         raw_data_remove=True,
-        aws_filepath='s3://emkf.data.research/indicators/mpj/data_outputs'
+        #aws_filepath='s3://emkf.data.research/indicators/mpj/data_outputs'
     )
 
