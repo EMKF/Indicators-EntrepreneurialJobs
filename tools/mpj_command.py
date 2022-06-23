@@ -217,7 +217,7 @@ def _indicators_create(df, region):
             contribution=lambda x: x['emp_mid'] / x['total_emp'],
             compensation=lambda x: x['EarnBeg'] / x['EarnBeg_us'],
             constancy=lambda x: (x['EmpS'] / x['EmpTotal']),
-            creation=lambda x: x['FrmJbC'] / x['population'] * 1000,
+            creation=lambda x: (x['EmpEnd'] - x['Emp'])/ x['population'] * 1000,
         ). \
         pipe(_missing_obs).\
         pipe(
