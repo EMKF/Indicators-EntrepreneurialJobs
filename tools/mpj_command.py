@@ -1,5 +1,4 @@
 import os
-import sys
 import shutil
 import joblib
 import numpy as np
@@ -7,21 +6,6 @@ import pandas as pd
 import constants as c
 from kauffman.data import qwi, pep
 from scipy.stats.mstats import gmean
-
-
-pd.set_option('max_columns', 1000)
-pd.set_option('max_info_columns', 1000)
-pd.set_option('expand_frame_repr', False)
-pd.set_option('display.max_rows', 30000)
-pd.set_option('max_colwidth', 4000)
-pd.set_option('display.float_format', lambda x: '%.3f' % x)
-pd.set_option('chained_assignment',None)
-
-
-def _format_csv(df):
-    print(df.head())
-    return df. \
-        astype({'fips': 'str', 'time': 'int'})
 
 
 def _fetch_data_earnbeg_us(fetch_data):
