@@ -1,5 +1,12 @@
 # Overview
-Python code for generating the csv files containing the Kauffman Foundation's Multi-Dimensional Jobs (MPJ) indicators data (see https://indicators.kauffman.org/series/). 
+Python code for generating the csv files containing the Kauffman Foundation's Multi-Dimensional Jobs (MPJ) indicators data (see https://indicators.kauffman.org/series/).
+
+# Requirements
+This repository provides two options for obtaining the raw data needed to create the indicators: Fetching the data from source, or using the pre-fetched data housed in `data/raw_data`. This option may be specified using an argument within `mpj_command` (see more on that below). If you choose to fetch raw data from source rather than use the provided data, you will need to do the following:
+1. Install the kauffman library. See the installation instructions at https://github.com/EMKF/downwardata.
+2. Create an environmental variable on your computer called "CENSUS_KEY" where the value is your census API key. If you do not have one, you can submit a request at the following URL: https://api.census.gov/data/key_signup.html.
+
+[/If or when we get the kauffman library up on pip, we will need to remove language about downwardata reliance/]: #
 
 # Files
 The repository has two subdirectories:
