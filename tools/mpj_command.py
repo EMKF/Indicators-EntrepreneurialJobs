@@ -212,7 +212,7 @@ def _indicators_create(df, region):
             )
         ). \
         query(f'{c.qwi_start_year} <= time <= {c.qwi_end_year}') \
-        [['fips', 'firmage', 'time', 'contribution', 'compensation', 'constancy', 'creation', 'q2_index']].\
+        [['fips', 'geo_level', 'firmage', 'time', 'contribution', 'compensation', 'constancy', 'creation', 'q2_index']].\
         sort_values(['fips', 'time', 'firmage']).\
         reset_index(drop=True)
 
@@ -275,7 +275,7 @@ def _final_jobs_formatter(df, region):
         rename(columns={'time': 'year'}).\
         sort_values(['fips', 'year', 'category']). \
         reset_index(drop=True) \
-        [['fips', 'type', 'category', 'year', 'contribution', 'compensation', 'constancy', 'creation', 'q2_index']]
+        [['fips', 'geo_level', 'type', 'category', 'year', 'contribution', 'compensation', 'constancy', 'creation', 'q2_index']]
 
 
 def final_data_transform(df, region):
