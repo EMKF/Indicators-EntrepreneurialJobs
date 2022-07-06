@@ -15,7 +15,7 @@ pd.set_option('display.float_format', lambda x: '%.3f' % x)
 pd.set_option('chained_assignment', None)
 
 
-def raw_data_update():
+def raw_data_update(qwi_n_threads):
     joblib.dump(str(pd.to_datetime('today')), c.filenamer('data/raw_data/raw_data_fetch_time.pkl'))
 
     qwi(['EarnBeg'], obs_level='us', private=True, annualize=True) \
@@ -25,7 +25,7 @@ def raw_data_update():
         to_csv(c.filenamer('data/raw_data/earnbeg_us.csv'), index=False)
 
     for region in ['us', 'state', 'msa', 'county']:
-        qwi(['Emp', 'EmpEnd', 'EarnBeg', 'EmpS', 'EmpTotal', 'FrmJbC'], obs_level=region, private=True, firm_char=['firmage'], annualize=True).\
+        qwi(['Emp', 'EmpEnd', 'EarnBeg', 'EmpS', 'EmpTotal', 'FrmJbC'], obs_level=region, private=True, firm_char=['firmage'], annualize=True, n_threads=qwi_n_threads).\
             to_csv(c.filenamer(f'data/raw_data/qwi_{region}.csv'), index=False)
 
         pep(region).\
@@ -48,8 +48,8 @@ def s3_update():
 
 
 def main():
-    raw_data_update()
-    s3_update()
+    raw_data_update(qwi_n_threads=5)
+    #s3_update()
 
 
 if __name__ == '__main__':
