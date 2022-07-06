@@ -1,18 +1,8 @@
-import sys
-import boto3
 import joblib
 import pandas as pd
 import constants as c
 from kauffman.tools import file_to_s3
 from kauffman.data import qwi, pep
-
-pd.set_option('max_columns', 1000)
-pd.set_option('max_info_columns', 1000)
-pd.set_option('expand_frame_repr', False)
-pd.set_option('display.max_rows', 30000)
-pd.set_option('max_colwidth', 4000)
-pd.set_option('display.float_format', lambda x: '%.3f' % x)
-pd.set_option('chained_assignment', None)
 
 
 def raw_data_update(qwi_n_threads):
@@ -31,9 +21,6 @@ def raw_data_update(qwi_n_threads):
         pep(region).\
             rename(columns={'POP': 'population'}). \
             to_csv(c.filenamer(f'data/raw_data/pep_{region}.csv'), index=False)
-
-
-
 
 
 def s3_update():
