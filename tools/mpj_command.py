@@ -262,14 +262,8 @@ def _final_jobs_formatter(df, region):
     return df. \
         astype({'firmage': 'int'}).\
         pipe(_fips_formatter, region).\
-        pipe(lambda x: x.append(
-            x.\
-                query('firmage == 1').\
-                assign(type='Total', firmage=0)
-            )
-        ).\
         assign(
-            category=lambda x: pd.Categorical(x['firmage'].map(c.age_category_dict), ['Total', 'Ages 0 to 1', 'Ages 2 to 3', 'Ages 4 to 5', 'Ages 6 to 10', 'Ages 11+']),
+            category=lambda x: pd.Categorical(x['firmage'].map(c.age_category_dict), ['Ages 0 to 1', 'Ages 2 to 3', 'Ages 4 to 5', 'Ages 6 to 10', 'Ages 11+']),
             type='Age of Business'
         ).\
         rename(columns={'time': 'year'}).\
@@ -319,7 +313,6 @@ def _download_to_alley_formatter(df, outcome):
     return df[['fips', 'year', 'type', 'category'] + [outcome]].\
         pipe(pd.pivot_table, index=['fips', 'type', 'category'], columns='year', values=outcome).\
         reset_index().\
-        replace('Total', '').\
         rename(columns={'type': 'demographic-type', 'category': 'demographic', 'fips': 'region'})
 
 
@@ -359,7 +352,7 @@ def mpj_data_create_all(raw_data_fetch, raw_data_remove, aws_filepath=None):
 
 if __name__ == '__main__':
     mpj_data_create_all(
-        raw_data_fetch=True,
+        raw_data_fetch=False,
         raw_data_remove=True,
         #aws_filepath='s3://emkf.data.research/indicators/mpj/data_outputs'
     )
