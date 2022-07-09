@@ -172,7 +172,7 @@ def _indicators_create(df, region):
         The raw data
 
     region : str
-        The geographical level of the data. Options: 'US', 'state'
+        The geographical level of the data. Options: 'us', 'state', 'county', 'msa'
 
     us_med : DataFrame
         Unconditional US-level earnings
@@ -227,7 +227,7 @@ def _fips_formatter(df, region):
         Raw indicators data
 
     region : str
-        Geographical level of data. Options: 'US' or 'state'
+        The geographical level of data. Options: 'us', 'state', 'county', 'msa'
 
     Returns
     -------
@@ -252,7 +252,7 @@ def _final_jobs_formatter(df, region):
         The data
 
     region : str
-        The geographical level of the data. Options: 'US' or 'state'
+        The geographical level of the data. Options: 'us', 'state', 'county', 'msa'
 
     Returns
     -------
@@ -268,13 +268,12 @@ def _final_jobs_formatter(df, region):
         ).\
         rename(columns={'time': 'year'}).\
         sort_values(['fips', 'year', 'category']). \
-        reset_index(drop=True) \
-        [['fips', 'geo_level', 'type', 'category', 'year', 'contribution', 'compensation', 'constancy', 'creation', 'q2_index']]
+        reset_index(drop=True)
 
 
-def final_data_transform(df, region):
+def _enforce_geo_universe(df, region):
     """
-    Format the raw indicators dataframe and add the region name as a column.
+    Enforce the presence of the entire universe of counties/msas/states for each year/firmage combo.
 
     Parameters
     ----------
@@ -282,7 +281,38 @@ def final_data_transform(df, region):
         The data
 
     region : str
-        The geographical level of the data. Options: 'US' or 'state'
+        The geographical level of the data. Options: 'us', 'state', 'county', 'msa'
+
+    Returns
+    -------
+    DataFrame
+        The complete data, with every fips code (within the input region) by year and firmage.
+    """
+    categories = list(df.category.unique())
+
+    return c.geography_universe[['fips', 'geo_level', 'name']].\
+        query(f'geo_level == "{c.region_to_code[region]}"').\
+        drop_duplicates().\
+        assign(
+            year=lambda x: [[y for y in range(2001,2021)]]*len(x),
+            type='Age of Business',
+            category=lambda x: [categories]*len(x)
+        ).\
+        explode('year').explode('category').\
+        merge(df, on=['fips', 'geo_level', 'type', 'year', 'category'], how='left')
+
+
+def final_data_transform(df, region):
+    """
+    Perform some final cleanup on the indicators dataframe: Format the columns, add the region name as a column, and enforce the presence of the entire universe of counties/msas/states for each year/firmage combo.
+
+    Parameters
+    ----------
+    df : DataFrame
+        The data
+
+    region : str
+        The geographical level of the data. Options: 'us', 'state', 'county', 'msa'
 
     Returns
     -------
@@ -292,7 +322,11 @@ def final_data_transform(df, region):
     print('final_data_transform')
     return df.\
         pipe(_final_jobs_formatter, region).\
-        assign(name=lambda x: x['fips'].map(c.all_fips_name_dict))
+        pipe(_enforce_geo_universe, region) \
+        [[
+            'fips', 'name', 'geo_level', 'type', 'category', 'year', 
+            'contribution', 'compensation', 'constancy', 'creation', 'q2_index'
+        ]]
 
 
 def _region_all_pipeline(region):
