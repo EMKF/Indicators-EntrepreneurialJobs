@@ -20,6 +20,7 @@ def raw_data_update(qwi_n_threads):
 
         pep(region).\
             rename(columns={'POP': 'population'}). \
+            query('2001 <= time <= 2020').\
             to_csv(c.filenamer(f'data/raw_data/pep_{region}.csv'), index=False)
 
 

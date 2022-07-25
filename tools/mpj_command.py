@@ -32,7 +32,7 @@ def _fetch_data_pep(region, fetch_data):
     if fetch_data:
         print(f'\tcreating dataset neb/data/temp/pep_{region}.pkl')
         df = pep(region). \
-            query('time > 1994'). \
+            query('2001 <= time <= 2020'). \
             astype({'time': 'int', 'population': 'int'})
     else:
         df = pd.read_csv(c.filenamer(f'data/raw_data/pep_{region}.csv')). \
