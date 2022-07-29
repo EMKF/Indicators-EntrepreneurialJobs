@@ -1,0 +1,1 @@
+This data reflects the 2022 Q2 vintage for QWI.
