@@ -8,6 +8,13 @@ from kauffman.data import qwi, pep
 from scipy.stats.mstats import gmean
 
 
+# WARNING: Please ensure that QWI has consistent releases for all 50 states
+# before running. Here is a link to validate that folder containing most recent
+# release has all 50 states + D.C.: https://lehd.ces.census.gov/data/qwi/.
+# This link: https://lehd.ces.census.gov/doc/QWI_data_notices.pdf is updated
+# by the Census Bureau whenever a complete new release of QWI data are available.
+
+
 def _fetch_data_earnbeg_us(fetch_data):
     if fetch_data:
         df = qwi(['EarnBeg'], obs_level='us', private=True, annualize=True) \
