@@ -263,11 +263,11 @@ def _final_jobs_formatter(df, region):
         astype({'firmage': 'int'}).\
         pipe(_fips_formatter, region).\
         assign(
-            category=lambda x: pd.Categorical(x['firmage'].map(c.age_category_dict), ['Ages 0 to 1', 'Ages 2 to 3', 'Ages 4 to 5', 'Ages 6 to 10', 'Ages 11+']),
+            demographic=lambda x: pd.Categorical(x['firmage'].map(c.age_category_dict), ['Ages 0 to 1', 'Ages 2 to 3', 'Ages 4 to 5', 'Ages 6 to 10', 'Ages 11+']),
             type='Age of Business'
         ).\
-        rename(columns={'time': 'year'}).\
-        sort_values(['fips', 'year', 'category']). \
+        rename(columns={'time': 'year', 'type':'demographic-type', 'firmage':'demographic-code'}).\
+        sort_values(['fips', 'year', 'demographic']). \
         reset_index(drop=True)
 
 
@@ -288,7 +288,7 @@ def _enforce_geo_universe(df, region):
     DataFrame
         The complete data, with every fips code (within the input region) by year and firmage.
     """
-    categories = list(df.category.unique())
+    firmages = list(range(1,6))
 
     return c.geography_universe[['fips', 'geo_level', 'name']].\
         query(f'geo_level == "{c.region_to_code[region]}"').\
@@ -296,10 +296,12 @@ def _enforce_geo_universe(df, region):
         assign(
             year=lambda x: [[y for y in range(2001,2021)]]*len(x),
             type='Age of Business',
-            category=lambda x: [categories]*len(x)
+            code=lambda x: [firmages]*len(x)
         ).\
-        explode('year').explode('category').\
-        merge(df, on=['fips', 'geo_level', 'type', 'year', 'category'], how='left')
+        explode('year').explode('code').\
+        assign(demographic=lambda x: x.code.map(c.age_category_dict)).\
+        rename(columns={'type':'demographic-type', 'code':'demographic-code'}).\
+        merge(df, on=['fips', 'geo_level', 'demographic-type', 'year', 'demographic', 'demographic-code'], how='left')
 
 
 def final_data_transform(df, region):
@@ -324,8 +326,9 @@ def final_data_transform(df, region):
         pipe(_final_jobs_formatter, region).\
         pipe(_enforce_geo_universe, region) \
         [[
-            'fips', 'name', 'geo_level', 'type', 'category', 'year', 
-            'contribution', 'compensation', 'constancy', 'creation', 'q2_index'
+            'fips', 'name', 'geo_level', 'year', 'demographic-type', 
+            'demographic-code', 'demographic', 'contribution', 'compensation',
+            'constancy', 'creation', 'q2_index'
         ]]
 
 
@@ -344,10 +347,13 @@ def _download_csv_save(df, aws_filepath):
 
 
 def _download_to_alley_formatter(df, outcome):
-    return df[['fips', 'year', 'type', 'category'] + [outcome]].\
-        pipe(pd.pivot_table, index=['fips', 'type', 'category'], columns='year', values=outcome).\
-        reset_index().\
-        rename(columns={'type': 'demographic-type', 'category': 'demographic', 'fips': 'region'})
+    index_cols = [
+        'fips', 'name', 'geo_level', 'demographic-type', 'demographic-code',
+        'demographic'
+    ]
+    return df[index_cols + ['year'] + [outcome]].\
+        pivot(index=index_cols, columns='year', values=outcome).\
+        reset_index()
 
 
 def _website_csvs_save(df, aws_filepath):
