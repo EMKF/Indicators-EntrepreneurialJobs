@@ -5,6 +5,21 @@ from kauffman.tools import file_to_s3
 from kauffman.data import qwi, pep
 
 
+def _pep_county_adjustments(df, region):
+    if region == 'county':
+        return df. \
+            assign(
+                fips=lambda x: x.fips.replace(
+                    {'02270':'02158', '46113':'46102', '51515':'51019'}
+                ),
+                region=lambda x: x.region.replace('Bedford city', 'Bedford County')
+            ). \
+            groupby(['fips', 'region', 'time']).sum(). \
+            reset_index()
+    else:
+        return df
+
+
 def raw_data_update(qwi_n_threads):
     joblib.dump(str(pd.to_datetime('today')), c.filenamer('data/raw_data/raw_data_fetch_time.pkl'))
 
@@ -20,6 +35,8 @@ def raw_data_update(qwi_n_threads):
 
         pep(region).\
             rename(columns={'POP': 'population'}). \
+            query('2001 <= time <= 2020'). \
+            pipe(_pep_county_adjustments, region). \
             to_csv(c.filenamer(f'data/raw_data/pep_{region}.csv'), index=False)
 
 
@@ -35,7 +52,7 @@ def s3_update():
 
 
 def main():
-    raw_data_update(qwi_n_threads=5)
+    raw_data_update(qwi_n_threads=30)
     #s3_update()
 
 

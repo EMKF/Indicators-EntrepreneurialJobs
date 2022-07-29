@@ -28,11 +28,27 @@ def _fetch_data_qwi(region, fetch_data):
     joblib.dump(df, c.filenamer(f'data/temp/qwi_{region}.pkl'))
 
 
+def _pep_county_adjustments(df, region):
+    if region == 'county':
+        return df. \
+            assign(
+                fips=lambda x: x.fips.replace(
+                    {'02270':'02158', '46113':'46102', '51515':'51019'}
+                ),
+                region=lambda x: x.region.replace('Bedford city', 'Bedford County')
+            ). \
+            groupby(['fips', 'region', 'time']).sum(). \
+            reset_index()
+    else:
+        return df
+
+
 def _fetch_data_pep(region, fetch_data):
     if fetch_data:
         print(f'\tcreating dataset neb/data/temp/pep_{region}.pkl')
         df = pep(region). \
-            query('time > 1994'). \
+            query('2001 <= time <= 2020'). \
+            pipe(_pep_county_adjustments, region). \
             astype({'time': 'int', 'population': 'int'})
     else:
         df = pd.read_csv(c.filenamer(f'data/raw_data/pep_{region}.csv')). \
@@ -396,4 +412,3 @@ if __name__ == '__main__':
         raw_data_remove=True,
         #aws_filepath='s3://emkf.data.research/indicators/mpj/data_outputs'
     )
-
