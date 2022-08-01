@@ -80,103 +80,6 @@ def _raw_data_merge(region):
         merge(joblib.load(c.filenamer(f'data/temp/earnbeg_us.pkl')), how='left', on='time')
 
 
-def _goalpost(df, index_vars):
-    """
-    Norm each of the variables in index_vars using the goalpost method.
-
-    Parameters
-    ----------
-    df : DataFrame
-        The data of a particular year
-
-    index_vars : dict
-        The index variables and their characteristics
-
-    Returns
-    -------
-    DataFrame
-        The data with normalized index variables
-    """
-    for k, v in index_vars.items():
-        if v['polarity'] == 'pos':
-            df.loc[:, k + '_normed'] = ((df[k] - (v['ref'] - v['delta'])) / (2 * v['delta'])) * .6 + .7
-        else:
-            df.loc[:, k + '_normed'] = 1.3 - ((df[k] - (v['ref'] - v['delta'])) / (2 * v['delta'])) * .6
-    return df
-
-
-def _aggregator(df, index_vars):
-    """
-    Create an aggregate index variable through taking the geometric mean of the variables in 
-    index_vars.
-
-    Parameters
-    ----------
-    df : DataFrame
-        The data of a particular year
-        
-    index_vars : dict
-        The non-aggregated index variables and their characteristics
-
-    Returns
-    -------
-    DataFrame
-        The data with the aggregated index variable
-    """
-    df.loc[:, 'q2_index'] = gmean(df[map(lambda x: x + '_normed', index_vars)], axis=1)
-    return df.drop(list(map(lambda x: x + '_normed', index_vars)), 1)
-
-
-def _index_create(df, region):
-    """
-    Create the composite index.
-    """
-    # create a df that is just a "young" firms age category
-    df_ref = df. \
-        astype({'firmage': 'int'}).\
-        query('firmage <= 3') \
-        [['fips', 'time', 'Emp', 'EmpS', 'total_emp', 'population', 'emp_mid', 'EarnBeg_us', 'EarnBeg', 'EmpTotal']].\
-        groupby(['fips', 'time', 'total_emp', 'EarnBeg_us', 'population']).sum().\
-        reset_index(drop=False).\
-        assign(
-            firmage=6,
-            contribution=lambda x: x['emp_mid'] / x['total_emp'],
-            compensation=lambda x: x['EarnBeg'] / x['EarnBeg_us'],
-            constancy=lambda x: (x['EmpS'] / x['EmpTotal']),
-        ).\
-        pipe(_missing_obs)
-
-    if region == 'county':
-        return df_ref. \
-            drop_duplicates(['fips', 'time'], keep='first'). \
-            reset_index(drop=True). \
-            assign(q2_index=np.nan) \
-            [['fips', 'time', 'q2_index']]
-
-    else:
-        df_temp = df_ref.query('1996 <= time <= 2015')
-        index_vars_dict = c.index_vars_dict
-        for indicator in index_vars_dict.keys():  # ['contribution', 'compensation', 'constancy']:
-            index_vars_dict[indicator]['delta'] = (df_temp[indicator].max() - df_temp[indicator].min()) / 2
-            index_vars_dict[indicator]['ref'] = df_temp[indicator].mean()
-    # elif region == 'us':
-    #     df_temp = df_ref.query('1996 <= time <= 2015')
-    #     index_vars_dict = c.index_vars_dict
-    #     for indicator in index_vars_dict.keys():  # ['contribution', 'compensation', 'constancy']:
-    #         index_vars_dict[indicator]['delta'] = (df_temp[indicator].max() - df_temp[indicator].min()) / 2
-    #         index_vars_dict[indicator]['ref'] = df_temp[indicator].mean()
-    #     joblib.dump(index_vars_dict, c.filenamer('data/temp/index_vars_dict'))
-    # else:
-    #     index_vars_dict = joblib.load(c.filenamer('data/temp/index_vars_dict'))
-
-    return df_ref. \
-        pipe(_goalpost, index_vars_dict). \
-        pipe(_aggregator, index_vars_dict).\
-        drop_duplicates(['fips', 'time', 'q2_index'], keep='first').\
-        reset_index(drop=True) \
-        [['fips', 'time', 'q2_index']]
-
-
 def _missing_obs(df):
     """Identify certain data as NA's rather than 0's"""
     df.loc[df['EmpTotal'] == 0, 'constancy'] = np.nan
@@ -185,9 +88,9 @@ def _missing_obs(df):
     return df
 
 
-def _indicators_create(df, region):
+def _indicators_create(df):
     """
-    Calculate the four indicators and the index.
+    Calculate the four indicators.
 
     Parameters
     ----------
@@ -227,15 +130,8 @@ def _indicators_create(df, region):
             creation=lambda x: (x['EmpEnd'] - x['Emp'])/ x['population'] * 1000,
         ). \
         pipe(_missing_obs).\
-        pipe(
-            lambda x: x.merge(
-                _index_create(x, region=region),
-                how='left',
-                on=['fips', 'time']
-            )
-        ). \
         query(f'{c.qwi_start_year} <= time <= {c.qwi_end_year}') \
-        [['fips', 'geo_level', 'firmage', 'time', 'contribution', 'compensation', 'constancy', 'creation', 'q2_index']].\
+        [['fips', 'geo_level', 'firmage', 'time', 'contribution', 'compensation', 'constancy', 'creation']].\
         sort_values(['fips', 'time', 'firmage']).\
         reset_index(drop=True)
 
@@ -351,13 +247,13 @@ def final_data_transform(df, region):
         [[
             'fips', 'name', 'geo_level', 'year', 'demographic-type', 
             'demographic-code', 'demographic', 'contribution', 'compensation',
-            'constancy', 'creation', 'q2_index'
+            'constancy', 'creation'
         ]]
 
 
 def _region_all_pipeline(region):
     return _raw_data_merge(region).\
-            pipe(_indicators_create, region).\
+            pipe(_indicators_create).\
             pipe(final_data_transform, region)
 
 
@@ -380,7 +276,7 @@ def _download_to_alley_formatter(df, outcome):
 
 
 def _website_csvs_save(df, aws_filepath):
-    for indicator in ['contribution', 'compensation', 'constancy', 'creation', 'q2_index']:
+    for indicator in ['contribution', 'compensation', 'constancy', 'creation']:
         df_out = df.pipe(_download_to_alley_formatter, indicator)
 
         df_out.to_csv(c.filenamer(f'data/mpj_website_{indicator}.csv'), index=False)
