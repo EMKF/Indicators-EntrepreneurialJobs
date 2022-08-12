@@ -84,7 +84,7 @@ def _missing_obs(df):
     """Identify certain data as NA's rather than 0's"""
     df.loc[df['EmpTotal'] == 0, 'constancy'] = np.nan
     df.loc[df['EarnBeg'] == 0, 'compensation'] = np.nan
-    df.loc[df['emp_mid'] == 0, 'contribution'] = np.nan
+    df.loc[df['EmpMid'] == 0, 'contribution'] = np.nan
     return df
 
 
@@ -119,12 +119,12 @@ def _indicators_create(df):
     return df.\
         assign(
             # tee up values: I return a nan instead of the total if all age categories are not reported.
-            emp_mid=lambda x: (x['Emp'] + x['EmpEnd']) / 2,
-            total_emp=lambda x: x[['emp_mid', 'fips', 'time']].groupby(['fips', 'time']).transform(lambda y: y.sum() if y.count() == 5 else np.nan),
+            EmpMid=lambda x: (x['Emp'] + x['EmpEnd']) / 2,
+            total_emp=lambda x: x[['EmpMid', 'fips', 'time']].groupby(['fips', 'time']).transform(lambda y: y.sum() if y.count() == 5 else np.nan),
         ).\
         assign(
             # indicators create
-            contribution=lambda x: x['emp_mid'] / x['total_emp'],
+            contribution=lambda x: x['EmpMid'] / x['total_emp'],
             compensation=lambda x: x['EarnBeg'] / x['EarnBeg_us'],
             constancy=lambda x: (x['EmpS'] / x['EmpTotal']),
             creation=lambda x: (x['EmpEnd'] - x['Emp'])/ x['population'] * 1000,
