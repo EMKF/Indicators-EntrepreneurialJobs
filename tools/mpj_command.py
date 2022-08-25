@@ -5,14 +5,7 @@ import numpy as np
 import pandas as pd
 import constants as c
 from kauffman.data import qwi, pep
-from scipy.stats.mstats import gmean
-
-
-# WARNING: Please ensure that QWI has consistent releases for all 50 states
-# before running. Here is a link to validate that folder containing most recent
-# release has all 50 states + D.C.: https://lehd.ces.census.gov/data/qwi/.
-# This link: https://lehd.ces.census.gov/doc/QWI_data_notices.pdf is updated
-# by the Census Bureau whenever a complete new release of QWI data are available.
+from kauffman.tools import consistent_releases
 
 
 def _fetch_data_earnbeg_us(fetch_data):
@@ -25,10 +18,10 @@ def _fetch_data_earnbeg_us(fetch_data):
     joblib.dump(df, c.filenamer(f'data/temp/earnbeg_us.pkl'))
 
 
-def _fetch_data_qwi(region, fetch_data):
+def _fetch_data_qwi(region, fetch_data, qwi_n_threads):
     if fetch_data:
         print(f'\tcreating dataset neb/data/temp/qwi_{region}.pkl')
-        df = qwi(obs_level=region, firm_char=['firmage'])
+        df = qwi(obs_level=region, firm_char=['firmage'], n_threads=qwi_n_threads)
     else:
         df = pd.read_csv(c.filenamer(f'data/raw_data/qwi_{region}.csv')). \
             astype({'fips': 'str', 'time': 'int'})
@@ -63,14 +56,22 @@ def _fetch_data_pep(region, fetch_data):
     joblib.dump(df, c.filenamer(f'data/temp/pep_{region}.pkl'))
 
 
-def _raw_data_fetch(fetch_data):
+def _raw_data_fetch(fetch_data, qwi_n_threads):
+    if fetch_data and not consistent_releases(n_threads=qwi_n_threads):
+        raise Exception(
+            'There are multiple releases currently in use for the QWI data. ' \
+            'Please either wait for the Census to finish state updates on '
+            'the latest release, or assemble the data manually using the ' \
+            'files at this link: https://lehd.ces.census.gov/data/qwi/'
+        )
+
     if os.path.isdir(c.filenamer('data/temp')):
         _raw_data_remove(remove_data=True)
     os.mkdir(c.filenamer('data/temp'))
 
     _fetch_data_earnbeg_us(fetch_data)
     for region in ['us', 'state', 'msa', 'county']:
-        _fetch_data_qwi(region, fetch_data)
+        _fetch_data_qwi(region, fetch_data, qwi_n_threads)
         _fetch_data_pep(region, fetch_data)
 
 
@@ -288,14 +289,14 @@ def _raw_data_remove(remove_data=True):
         shutil.rmtree(c.filenamer('data/temp'))  # remove unwanted files
 
 
-def mpj_data_create_all(raw_data_fetch, raw_data_remove, aws_filepath=None):
+def mpj_data_create_all(raw_data_fetch, raw_data_remove, qwi_n_threads, aws_filepath=None):
     """
     Create and save MPJ data. This is the main function of mpj_command.py. 
 
     Fetch raw QWI, PEP, and MSA-crosswalk data, transform it, and save it to two csv's: One for 
     user download, and one formatted for upload to the Kauffman site.
     """
-    _raw_data_fetch(raw_data_fetch)
+    _raw_data_fetch(raw_data_fetch, qwi_n_threads)
 
     pd.concat(
         [
@@ -313,5 +314,6 @@ if __name__ == '__main__':
     mpj_data_create_all(
         raw_data_fetch=False,
         raw_data_remove=True,
+        qwi_n_threads=30
         #aws_filepath='s3://emkf.data.research/indicators/mpj/data_outputs'
     )
