@@ -208,7 +208,7 @@ def _enforce_geo_universe(df, region):
     DataFrame
         The complete data, with every fips code (within the input region) by year and firmage.
     """
-    firmages = list(range(1,6))
+    firmages = list(range(0,6))
 
     return c.geography_universe[['fips', 'geo_level', 'name']].\
         query(f'geo_level == "{c.region_to_code[region]}"').\
@@ -260,10 +260,16 @@ def _region_all_pipeline(region):
 
 def _download_csv_save(df, aws_filepath):
     """Saves download-version of data to a csv."""
-    df.to_csv(c.filenamer('data/mpj_download.csv'), index=False)
+    df_download = df.query('`demographic-code` != 0')
+    df_download.to_csv(c.filenamer('data/mpj_download.csv'), index=False)
     if aws_filepath:
-        df.to_csv(f'{aws_filepath}/mpj_download.csv', index=False)
+        df_download.to_csv(f'{aws_filepath}/mpj_download.csv', index=False)
     return df
+
+
+def _temp_formatter(df):
+    return df.drop(columns=['name', 'geo_level', 'demographic-code']).\
+        rename(columns={'fips':'region'})
 
 
 def _download_to_alley_formatter(df, outcome):
@@ -272,8 +278,10 @@ def _download_to_alley_formatter(df, outcome):
         'demographic'
     ]
     return df[index_cols + ['year'] + [outcome]].\
+        query(f'fips in {c.website_fips}').\
         pivot(index=index_cols, columns='year', values=outcome).\
-        reset_index()
+        reset_index().\
+        pipe(_temp_formatter)
 
 
 def _website_csvs_save(df, aws_filepath):
