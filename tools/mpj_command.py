@@ -208,7 +208,7 @@ def _enforce_geo_universe(df, region):
     DataFrame
         The complete data, with every fips code (within the input region) by year and firmage.
     """
-    firmages = list(range(0,6))
+    firmages = list(range(1,6))
 
     return c.geography_universe[['fips', 'geo_level', 'name']].\
         query(f'geo_level == "{c.region_to_code[region]}"').\
@@ -260,28 +260,35 @@ def _region_all_pipeline(region):
 
 def _download_csv_save(df, aws_filepath):
     """Saves download-version of data to a csv."""
-    df_download = df.query('`demographic-code` != 0')
-    df_download.to_csv(c.filenamer('data/mpj_download.csv'), index=False)
+    df.to_csv(c.filenamer('data/mpj_download.csv'), index=False)
     if aws_filepath:
-        df_download.to_csv(f'{aws_filepath}/mpj_download.csv', index=False)
+        df.to_csv(f'{aws_filepath}/mpj_download.csv', index=False)
     return df
 
 
 def _temp_formatter(df):
-    return df.drop(columns=['name', 'geo_level', 'demographic-code']).\
+    index_cols = [
+        'fips', 'name', 'geo_level', 'year', 'demographic-type', 
+        'demographic-code', 'demographic'
+    ]
+    return df.\
+        append(
+            df.query('demographic == "Ages 0 to 1"').\
+            assign(demographic='')
+        ).\
+        sort_values(index_cols).reset_index(drop=True).\
+        drop(columns=['name', 'geo_level', 'demographic-code']).\
         rename(columns={'fips':'region'})
 
 
 def _download_to_alley_formatter(df, outcome):
-    index_cols = [
-        'fips', 'name', 'geo_level', 'demographic-type', 'demographic-code',
-        'demographic'
-    ]
-    return df[index_cols + ['year'] + [outcome]].\
+    index_cols = ['region', 'demographic-type', 'demographic']
+    return df.\
         query(f'fips in {c.website_fips}').\
+        pipe(_temp_formatter) \
+        [index_cols + ['year'] + [outcome]].\
         pivot(index=index_cols, columns='year', values=outcome).\
-        reset_index().\
-        pipe(_temp_formatter)
+        reset_index()
 
 
 def _website_csvs_save(df, aws_filepath):
@@ -291,6 +298,7 @@ def _website_csvs_save(df, aws_filepath):
         df_out.to_csv(c.filenamer(f'data/mpj_website_{indicator}.csv'), index=False)
         if aws_filepath:
             df_out.to_csv(f'{aws_filepath}/mpj_website_{indicator}.csv', index=False)
+
 
 def _raw_data_remove(remove_data=True):
     if remove_data:
