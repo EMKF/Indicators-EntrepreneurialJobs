@@ -57,7 +57,7 @@ def s3_update():
     ]
 
     for file in files_lst:
-        file_to_s3(c.filenamer(f'data/raw_data/{file}'), 'emkf.data.research', f'indicators/mpj/raw_data/{file}')
+        file_to_s3(c.filenamer(f'data/raw_data/{file}'), 'emkf.data.research', f'indicators/eji/raw_data/{file}')
 
 
 def main():
