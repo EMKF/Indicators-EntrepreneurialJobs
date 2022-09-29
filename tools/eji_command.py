@@ -105,10 +105,10 @@ def _indicators_create(df):
         Unconditional US-level earnings
 
     start_year : int
-        First year to be included in the final MPJ csv
+        First year to be included in the final EJI csv
 
     end_year : int
-        Last year to be included in the final MPJ csv
+        Last year to be included in the final EJI csv
 
     Returns
     -------
@@ -260,9 +260,9 @@ def _region_all_pipeline(region):
 
 def _download_csv_save(df, aws_filepath):
     """Saves download-version of data to a csv."""
-    df.to_csv(c.filenamer('data/mpj_download.csv'), index=False)
+    df.to_csv(c.filenamer('data/eji_download.csv'), index=False)
     if aws_filepath:
-        df.to_csv(f'{aws_filepath}/mpj_download.csv', index=False)
+        df.to_csv(f'{aws_filepath}/eji_download.csv', index=False)
     return df
 
 
@@ -292,9 +292,9 @@ def _website_csvs_save(df, aws_filepath):
     for indicator in ['contribution', 'compensation', 'constancy', 'creation']:
         df_out = df.pipe(_download_to_alley_formatter, indicator)
 
-        df_out.to_csv(c.filenamer(f'data/mpj_website_{indicator}.csv'), index=False)
+        df_out.to_csv(c.filenamer(f'data/eji_website_{indicator}.csv'), index=False)
         if aws_filepath:
-            df_out.to_csv(f'{aws_filepath}/mpj_website_{indicator}.csv', index=False)
+            df_out.to_csv(f'{aws_filepath}/eji_website_{indicator}.csv', index=False)
 
 
 def _raw_data_remove(remove_data=True):
@@ -302,9 +302,9 @@ def _raw_data_remove(remove_data=True):
         shutil.rmtree(c.filenamer('data/temp'))  # remove unwanted files
 
 
-def mpj_data_create_all(raw_data_fetch, raw_data_remove, qwi_n_threads, aws_filepath=None):
+def eji_data_create_all(raw_data_fetch, raw_data_remove, qwi_n_threads, aws_filepath=None):
     """
-    Create and save MPJ data. This is the main function of mpj_command.py. 
+    Create and save EJI data. This is the main function of eji_command.py. 
 
     Fetch raw QWI, PEP, and MSA-crosswalk data, transform it, and save it to two csv's: One for 
     user download, and one formatted for upload to the Kauffman site.
@@ -324,9 +324,9 @@ def mpj_data_create_all(raw_data_fetch, raw_data_remove, qwi_n_threads, aws_file
 
 
 if __name__ == '__main__':
-    mpj_data_create_all(
+    eji_data_create_all(
         raw_data_fetch=False,
         raw_data_remove=True,
         qwi_n_threads=30
-        #aws_filepath='s3://emkf.data.research/indicators/mpj/data_outputs'
+        #aws_filepath='s3://emkf.data.research/indicators/eji/data_outputs'
     )
