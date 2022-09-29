@@ -266,11 +266,7 @@ def _download_csv_save(df, aws_filepath):
     return df
 
 
-def _temp_formatter(df):
-    index_cols = [
-        'fips', 'name', 'geo_level', 'year', 'demographic-type', 
-        'demographic-code', 'demographic'
-    ]
+def _temp_formatter(df, index_cols):
     return df.\
         append(
             df.query('demographic == "Ages 0 to 1"').\
@@ -282,13 +278,14 @@ def _temp_formatter(df):
 
 
 def _download_to_alley_formatter(df, outcome):
-    index_cols = ['region', 'demographic-type', 'demographic']
+    index_cols = [
+        'fips', 'name', 'geo_level', 'demographic-type', 'demographic-code', 
+        'demographic'
+    ]
     return df.\
-        query(f'fips in {c.website_fips}').\
-        pipe(_temp_formatter) \
-        [index_cols + ['year'] + [outcome]].\
         pivot(index=index_cols, columns='year', values=outcome).\
-        reset_index()
+        reset_index().\
+        pipe(_temp_formatter, index_cols)
 
 
 def _website_csvs_save(df, aws_filepath):
