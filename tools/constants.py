@@ -24,8 +24,16 @@ age_category_dict = {
 qwi_start_year = 2001
 qwi_end_year = 2020
 
+code_to_geo_level = {
+    'N':'us',
+    'S':'state',
+    'M':'msa',
+    'C':'county'
+}
+
 geography_universe = pd.read_csv('https://lehd.ces.census.gov/data/schema/latest/label_geography.csv').\
-    query('geo_level in ["N", "S", "M", "C"]').\
+    query(f'geo_level in ["N", "S", "M", "C"]').\
+    replace(code_to_geo_level).\
     assign(
         state=lambda x: x.geography.str[0:2],
         fips=lambda x: np.where(x.geo_level == 'M', x.geography.str[2:], x.geography),
@@ -34,10 +42,3 @@ geography_universe = pd.read_csv('https://lehd.ces.census.gov/data/schema/latest
     ).\
     query('fips != "99999" and state != "72"').\
     reset_index(drop=True)
-
-region_to_code = {
-    'us':'N',
-    'state':'S',
-    'msa':'M',
-    'county':'C'
-}

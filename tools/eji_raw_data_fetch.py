@@ -2,7 +2,7 @@ import joblib
 import pandas as pd
 import constants as c
 from kauffman.tools import file_to_s3
-from kauffman.data import qwi, pep
+from kauffman.data_fetch import qwi, pep
 from kauffman.tools import consistent_releases
 
 
@@ -15,7 +15,7 @@ def _pep_county_adjustments(df, region):
                 ),
                 region=lambda x: x.region.replace('Bedford city', 'Bedford County')
             ). \
-            groupby(['fips', 'region', 'time']).sum(). \
+            groupby(['time', 'fips', 'region', 'geo_level']).sum(). \
             reset_index()
     else:
         return df
@@ -32,14 +32,14 @@ def raw_data_update(qwi_n_threads):
     
     joblib.dump(str(pd.to_datetime('today')), c.filenamer('data/raw_data/raw_data_fetch_time.pkl'))
 
-    qwi(['EarnBeg'], obs_level='us', private=True, annualize=True) \
+    qwi(['EarnBeg'], geo_level='us', private=True, annualize=True) \
         [['time', 'EarnBeg']]. \
         rename(columns={'EarnBeg': 'EarnBeg_us'}). \
         apply(pd.to_numeric). \
         to_csv(c.filenamer('data/raw_data/earnbeg_us.csv'), index=False)
 
     for region in ['us', 'state', 'msa', 'county']:
-        qwi(['Emp', 'EmpEnd', 'EarnBeg', 'EmpS', 'EmpTotal', 'FrmJbC'], obs_level=region, private=True, firm_char=['firmage'], annualize=True, n_threads=qwi_n_threads).\
+        qwi(['Emp', 'EmpEnd', 'EarnBeg', 'EmpS', 'EmpTotal', 'FrmJbC'], geo_level=region, private=True, firm_char=['firmage'], annualize=True, n_threads=qwi_n_threads).\
             to_csv(c.filenamer(f'data/raw_data/qwi_{region}.csv'), index=False)
 
         pep(region).\

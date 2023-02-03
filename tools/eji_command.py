@@ -4,13 +4,13 @@ import joblib
 import numpy as np
 import pandas as pd
 import constants as c
-from kauffman.data import qwi, pep
+from kauffman.data_fetch import qwi, pep
 from kauffman.tools import consistent_releases
 
 
 def _fetch_data_earnbeg_us(fetch_data):
     if fetch_data:
-        df = qwi(['EarnBeg'], obs_level='us', private=True, annualize=True) \
+        df = qwi(['EarnBeg'], geo_level='us', private=True, annualize=True) \
             [['time', 'EarnBeg']]. \
             rename(columns={'EarnBeg': 'EarnBeg_us'})
     else:
@@ -21,7 +21,7 @@ def _fetch_data_earnbeg_us(fetch_data):
 def _fetch_data_qwi(region, fetch_data, qwi_n_threads):
     if fetch_data:
         print(f'\tcreating dataset neb/data/temp/qwi_{region}.pkl')
-        df = qwi(obs_level=region, firm_char=['firmage'], n_threads=qwi_n_threads)
+        df = qwi(geo_level=region, firm_char=['firmage'], n_threads=qwi_n_threads)
     else:
         df = pd.read_csv(c.filenamer(f'data/raw_data/qwi_{region}.csv')). \
             astype({'fips': 'str', 'time': 'int'})
@@ -37,7 +37,7 @@ def _pep_county_adjustments(df, region):
                 ),
                 region=lambda x: x.region.replace('Bedford city', 'Bedford County')
             ). \
-            groupby(['fips', 'region', 'time']).sum(). \
+            groupby(['time', 'fips', 'region', 'geo_level']).sum(). \
             reset_index()
     else:
         return df
@@ -57,13 +57,13 @@ def _fetch_data_pep(region, fetch_data):
 
 
 def _raw_data_fetch(fetch_data, qwi_n_threads):
-    if fetch_data and not consistent_releases(n_threads=qwi_n_threads):
-        raise Exception(
-            'There are multiple releases currently in use for the QWI data. ' \
-            'Please either wait for the Census to finish state updates on '
-            'the latest release, or assemble the data manually using the ' \
-            'files at this link: https://lehd.ces.census.gov/data/qwi/'
-        )
+    # if fetch_data and not consistent_releases(n_threads=qwi_n_threads):
+    #     raise Exception(
+    #         'There are multiple releases currently in use for the QWI data. ' \
+    #         'Please either wait for the Census to finish state updates on '
+    #         'the latest release, or assemble the data manually using the ' \
+    #         'files at this link: https://lehd.ces.census.gov/data/qwi/'
+    #     )
 
     if os.path.isdir(c.filenamer('data/temp')):
         _raw_data_remove(remove_data=True)
@@ -76,9 +76,17 @@ def _raw_data_fetch(fetch_data, qwi_n_threads):
 
 
 def _raw_data_merge(region):
-    return joblib.load(c.filenamer(f'data/temp/qwi_{region}.pkl')). \
-        merge(joblib.load(c.filenamer(f'data/temp/pep_{region}.pkl')).drop('region', 1), how='left', on=['fips', 'time']).\
-        merge(joblib.load(c.filenamer(f'data/temp/earnbeg_us.pkl')), how='left', on='time')
+    return joblib.load(c.filenamer(f'data/temp/qwi_{region}.pkl')) \
+        .merge(
+            joblib.load(c.filenamer(f'data/temp/pep_{region}.pkl')), \
+            how='left',
+            on=['time', 'fips', 'region', 'geo_level']
+        ) \
+        .merge(
+            joblib.load(c.filenamer(f'data/temp/earnbeg_us.pkl')), 
+            how='left', 
+            on='time'
+        )
 
 
 def _missing_obs(df):
@@ -211,7 +219,7 @@ def _enforce_geo_universe(df, region):
     firmages = list(range(1,6))
 
     return c.geography_universe[['fips', 'geo_level', 'name']].\
-        query(f'geo_level == "{c.region_to_code[region]}"').\
+        query(f'geo_level == "{region}"').\
         drop_duplicates().\
         assign(
             year=lambda x: [[y for y in range(2001,2021)]]*len(x),
@@ -314,8 +322,7 @@ def eji_data_create_all(raw_data_fetch, raw_data_remove, qwi_n_threads, aws_file
     pd.concat(
         [
             _region_all_pipeline(region) for region in ['us', 'state', 'msa', 'county']
-        ],
-        axis=0
+        ]
     ).\
         pipe(_download_csv_save, aws_filepath). \
         pipe(_website_csvs_save, aws_filepath)
@@ -325,7 +332,7 @@ def eji_data_create_all(raw_data_fetch, raw_data_remove, qwi_n_threads, aws_file
 
 if __name__ == '__main__':
     eji_data_create_all(
-        raw_data_fetch=False,
+        raw_data_fetch=True,
         raw_data_remove=True,
         qwi_n_threads=30
         #aws_filepath='s3://emkf.data.research/indicators/eji/data_outputs'
