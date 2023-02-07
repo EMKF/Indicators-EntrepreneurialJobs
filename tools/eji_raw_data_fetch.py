@@ -22,13 +22,13 @@ def _pep_county_adjustments(df, region):
 
 
 def raw_data_update(qwi_n_threads):
-    if not consistent_releases(n_threads=qwi_n_threads):
-        raise Exception(
-            'There are multiple releases currently in use for the QWI data. ' \
-            'Please either wait for the Census to finish state updates on '
-            'the latest release, or assemble the data manually using the ' \
-            'files at this link: https://lehd.ces.census.gov/data/qwi/'
-        )
+    # if not consistent_releases(n_threads=qwi_n_threads):
+    #     raise Exception(
+    #         'There are multiple releases currently in use for the QWI data. ' \
+    #         'Please either wait for the Census to finish state updates on '
+    #         'the latest release, or assemble the data manually using the ' \
+    #         'files at this link: https://lehd.ces.census.gov/data/qwi/'
+    #     )
     
     joblib.dump(str(pd.to_datetime('today')), c.filenamer('data/raw_data/raw_data_fetch_time.pkl'))
 
@@ -43,7 +43,6 @@ def raw_data_update(qwi_n_threads):
             to_csv(c.filenamer(f'data/raw_data/qwi_{region}.csv'), index=False)
 
         pep(region).\
-            rename(columns={'POP': 'population'}). \
             query('2001 <= time <= 2020'). \
             pipe(_pep_county_adjustments, region). \
             to_csv(c.filenamer(f'data/raw_data/pep_{region}.csv'), index=False)

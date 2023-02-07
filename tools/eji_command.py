@@ -57,13 +57,13 @@ def _fetch_data_pep(region, fetch_data):
 
 
 def _raw_data_fetch(fetch_data, qwi_n_threads):
-    # if fetch_data and not consistent_releases(n_threads=qwi_n_threads):
-    #     raise Exception(
-    #         'There are multiple releases currently in use for the QWI data. ' \
-    #         'Please either wait for the Census to finish state updates on '
-    #         'the latest release, or assemble the data manually using the ' \
-    #         'files at this link: https://lehd.ces.census.gov/data/qwi/'
-    #     )
+    if fetch_data and not consistent_releases(n_threads=qwi_n_threads):
+        raise Exception(
+            'There are multiple releases currently in use for the QWI data. ' \
+            'Please either wait for the Census to finish state updates on '
+            'the latest release, or assemble the data manually using the ' \
+            'files at this link: https://lehd.ces.census.gov/data/qwi/'
+        )
 
     if os.path.isdir(c.filenamer('data/temp')):
         _raw_data_remove(remove_data=True)
@@ -78,9 +78,10 @@ def _raw_data_fetch(fetch_data, qwi_n_threads):
 def _raw_data_merge(region):
     return joblib.load(c.filenamer(f'data/temp/qwi_{region}.pkl')) \
         .merge(
-            joblib.load(c.filenamer(f'data/temp/pep_{region}.pkl')), \
+            joblib.load(c.filenamer(f'data/temp/pep_{region}.pkl')) \
+                .drop(columns=['region', 'geo_level']),
             how='left',
-            on=['time', 'fips', 'region', 'geo_level']
+            on=['time', 'fips']
         ) \
         .merge(
             joblib.load(c.filenamer(f'data/temp/earnbeg_us.pkl')), 
@@ -332,7 +333,7 @@ def eji_data_create_all(raw_data_fetch, raw_data_remove, qwi_n_threads, aws_file
 
 if __name__ == '__main__':
     eji_data_create_all(
-        raw_data_fetch=True,
+        raw_data_fetch=False,
         raw_data_remove=True,
         qwi_n_threads=30
         #aws_filepath='s3://emkf.data.research/indicators/eji/data_outputs'

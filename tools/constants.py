@@ -36,7 +36,7 @@ geography_universe = pd.read_csv('https://lehd.ces.census.gov/data/schema/latest
     replace(code_to_geo_level).\
     assign(
         state=lambda x: x.geography.str[0:2],
-        fips=lambda x: np.where(x.geo_level == 'M', x.geography.str[2:], x.geography),
+        fips=lambda x: np.where(x.geo_level == 'msa', x.geography.str[2:], x.geography),
         name=lambda x: x.label.str.split('(').str[0].\
             str.rstrip().replace({'National':'United States'})
     ).\
