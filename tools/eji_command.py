@@ -19,20 +19,20 @@ def _fetch_data_earnbeg_us(fetch_data):
     joblib.dump(df, c.filenamer(f'data/temp/earnbeg_us.pkl'))
 
 
-def _fetch_data_qwi(region, fetch_data, qwi_n_threads):
+def _fetch_data_qwi(geo_level, fetch_data, qwi_n_threads):
     if fetch_data:
-        print(f'\tcreating dataset neb/data/temp/qwi_{region}.pkl')
+        print(f'\tcreating dataset neb/data/temp/qwi_{geo_level}.pkl')
         df = qwi(
-            geo_level=region, firm_char=['firmage'], n_threads=qwi_n_threads
+            geo_level=geo_level, firm_char=['firmage'], n_threads=qwi_n_threads
         )
     else:
-        df = pd.read_csv(c.filenamer(f'data/raw_data/qwi_{region}.csv')) \
+        df = pd.read_csv(c.filenamer(f'data/raw_data/qwi_{geo_level}.csv')) \
             .astype({'fips': 'str', 'time': 'int'})
-    joblib.dump(df, c.filenamer(f'data/temp/qwi_{region}.pkl'))
+    joblib.dump(df, c.filenamer(f'data/temp/qwi_{geo_level}.pkl'))
 
 
-def _pep_county_adjustments(df, region):
-    if region == 'county':
+def _pep_county_adjustments(df, geo_level):
+    if geo_level == 'county':
         return df \
             .assign(
                 fips=lambda x: x.fips.replace(
@@ -47,17 +47,17 @@ def _pep_county_adjustments(df, region):
         return df
 
 
-def _fetch_data_pep(region, fetch_data):
+def _fetch_data_pep(geo_level, fetch_data):
     if fetch_data:
-        print(f'\tcreating dataset neb/data/temp/pep_{region}.pkl')
-        df = pep(region) \
+        print(f'\tcreating dataset neb/data/temp/pep_{geo_level}.pkl')
+        df = pep(geo_level) \
             .query('2001 <= time <= 2020') \
-            .pipe(_pep_county_adjustments, region) \
+            .pipe(_pep_county_adjustments, geo_level) \
             .astype({'time': 'int', 'population': 'int'})
     else:
-        df = pd.read_csv(c.filenamer(f'data/raw_data/pep_{region}.csv')) \
+        df = pd.read_csv(c.filenamer(f'data/raw_data/pep_{geo_level}.csv')) \
             .astype({'fips': 'str', 'time': 'int'})
-    joblib.dump(df, c.filenamer(f'data/temp/pep_{region}.pkl'))
+    joblib.dump(df, c.filenamer(f'data/temp/pep_{geo_level}.pkl'))
 
 
 def _raw_data_fetch(fetch_data, qwi_n_threads):
@@ -74,15 +74,15 @@ def _raw_data_fetch(fetch_data, qwi_n_threads):
     os.mkdir(c.filenamer('data/temp'))
 
     _fetch_data_earnbeg_us(fetch_data)
-    for region in ['us', 'state', 'msa', 'county']:
-        _fetch_data_qwi(region, fetch_data, qwi_n_threads)
-        _fetch_data_pep(region, fetch_data)
+    for geo_level in ['us', 'state', 'msa', 'county']:
+        _fetch_data_qwi(geo_level, fetch_data, qwi_n_threads)
+        _fetch_data_pep(geo_level, fetch_data)
 
 
-def _raw_data_merge(region):
-    return joblib.load(c.filenamer(f'data/temp/qwi_{region}.pkl')) \
+def _raw_data_merge(geo_level):
+    return joblib.load(c.filenamer(f'data/temp/qwi_{geo_level}.pkl')) \
         .merge(
-            joblib.load(c.filenamer(f'data/temp/pep_{region}.pkl')) \
+            joblib.load(c.filenamer(f'data/temp/pep_{geo_level}.pkl')) \
                 .drop(columns=['region', 'geo_level']),
             how='left',
             on=['time', 'fips']
@@ -110,14 +110,6 @@ def _indicators_create(df):
     ----------
     df: DataFrame
         The raw data
-    region: {'us', 'state', 'county', 'msa'}
-        The geographical level of data.
-    us_med: DataFrame
-        Unconditional US-level earnings
-    start_year: int
-        First year to be included in the final EJI csv
-    end_year: int
-        Last year to be included in the final EJI csv
 
     Returns
     -------
@@ -152,7 +144,7 @@ def _indicators_create(df):
         .reset_index(drop=True)
 
 
-def _fips_formatter(df, region):
+def _fips_formatter(df, geo_level):
     """
     Format the fips column.
 
@@ -160,7 +152,7 @@ def _fips_formatter(df, region):
     ----------
     df: DataFrame
         Raw indicators data
-    region: {'us', 'state', 'county', 'msa'}
+    geo_level: {'us', 'state', 'county', 'msa'}
         The geographical level of data.
 
     Returns
@@ -168,9 +160,9 @@ def _fips_formatter(df, region):
     DataFrame
         Indicators data with formatted fips column
     """
-    if region == 'us':
+    if geo_level == 'us':
         return df.assign(fips='00')
-    elif region == 'state':
+    elif geo_level == 'state':
         return df.assign(
             fips=lambda x: x['fips'] \
                 .apply(lambda row: row if len(row) == 2 else '0' + row)
@@ -186,7 +178,7 @@ def _fips_formatter(df, region):
         )
 
 
-def _final_jobs_formatter(df, region):
+def _final_jobs_formatter(df, geo_level):
     """
     Format the raw indicator dataframe.
 
@@ -194,7 +186,7 @@ def _final_jobs_formatter(df, region):
     ----------
     df: DataFrame
         The data
-    region: {'us', 'state', 'county', 'msa'}
+    geo_level: {'us', 'state', 'county', 'msa'}
         The geographical level of data.
 
     Returns
@@ -204,7 +196,7 @@ def _final_jobs_formatter(df, region):
     """
     return df \
         .astype({'firmage': 'int'}) \
-        .pipe(_fips_formatter, region) \
+        .pipe(_fips_formatter, geo_level) \
         .assign(
             demographic=lambda x: pd.Categorical(
                 x['firmage'].map(c.age_category_dict), 
@@ -223,7 +215,7 @@ def _final_jobs_formatter(df, region):
         .reset_index(drop=True)
 
 
-def _enforce_geo_universe(df, region):
+def _enforce_geo_universe(df, geo_level):
     """
     Enforce the presence of the entire universe of counties/msas/states for each
     year/firmage combo.
@@ -232,19 +224,19 @@ def _enforce_geo_universe(df, region):
     ----------
     df: DataFrame
         The data
-    region: {'us', 'state', 'county', 'msa'}
+    geo_level: {'us', 'state', 'county', 'msa'}
         The geographical level of data.
 
     Returns
     -------
     DataFrame
-        The complete data, with every fips code (within the input region) by 
+        The complete data, with every fips code (within the input geo_level) by 
         year and firmage.
     """
     firmages = list(range(1,6))
 
     return c.geography_universe[['fips', 'geo_level', 'name']] \
-        .query(f'geo_level == "{region}"') \
+        .query(f'geo_level == "{geo_level}"') \
         .drop_duplicates() \
         .assign(
             year=lambda x: [[y for y in range(2001,2021)]]*len(x),
@@ -265,17 +257,17 @@ def _enforce_geo_universe(df, region):
         )
 
 
-def final_data_transform(df, region):
+def final_data_transform(df, geo_level):
     """
     Perform some final cleanup on the indicators dataframe: Format the columns,
-    add the region name as a column, and enforce the presence of the entire 
+    add the geo_level name as a column, and enforce the presence of the entire 
     universe of counties/msas/states for each year/firmage combo.
 
     Parameters
     ----------
     df: DataFrame
         The data
-    region: {'us', 'state', 'county', 'msa'}
+    geo_level: {'us', 'state', 'county', 'msa'}
         The geographical level of data.
 
     Returns
@@ -285,8 +277,8 @@ def final_data_transform(df, region):
     """
     print('final_data_transform')
     return df \
-        .pipe(_final_jobs_formatter, region) \
-        .pipe(_enforce_geo_universe, region) \
+        .pipe(_final_jobs_formatter, geo_level) \
+        .pipe(_enforce_geo_universe, geo_level) \
         [[
             'fips', 'name', 'geo_level', 'year', 'demographic-type', 
             'demographic-code', 'demographic', 'contribution', 'compensation',
@@ -294,10 +286,10 @@ def final_data_transform(df, region):
         ]]
 
 
-def _region_all_pipeline(region):
-    return _raw_data_merge(region) \
+def _create_eji_data(geo_level):
+    return _raw_data_merge(geo_level) \
             .pipe(_indicators_create) \
-            .pipe(final_data_transform, region)
+            .pipe(final_data_transform, geo_level)
 
 
 def _download_csv_save(df, aws_filepath):
@@ -362,8 +354,8 @@ def eji_data_create_all(
 
     pd.concat(
         [
-            _region_all_pipeline(region) 
-            for region in ['us', 'state', 'msa', 'county']
+            _create_eji_data(geo_level) 
+            for geo_level in ['us', 'state', 'msa', 'county']
         ]
     ) \
         .pipe(_download_csv_save, aws_filepath) \

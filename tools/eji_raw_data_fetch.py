@@ -6,8 +6,8 @@ from kauffman.data_fetch import qwi, pep
 from kauffman.tools import consistent_releases
 
 
-def _pep_county_adjustments(df, region):
-    if region == 'county':
+def _pep_county_adjustments(df, geo_level):
+    if geo_level == 'county':
         return df \
             .assign(
                 fips=lambda x: x.fips.replace(
@@ -42,21 +42,21 @@ def raw_data_update(qwi_n_threads):
         .apply(pd.to_numeric) \
         .to_csv(c.filenamer('data/raw_data/earnbeg_us.csv'), index=False)
 
-    for region in ['us', 'state', 'msa', 'county']:
+    for geo_level in ['us', 'state', 'msa', 'county']:
         qwi(
                 ['Emp', 'EmpEnd', 'EarnBeg', 'EmpS', 'EmpTotal', 'FrmJbC'], 
-                geo_level=region, 
+                geo_level=geo_level, 
                 private=True, 
                 firm_char=['firmage'], 
                 annualize=True, 
                 n_threads=qwi_n_threads
             ) \
-            .to_csv(c.filenamer(f'data/raw_data/qwi_{region}.csv'), index=False)
+            .to_csv(c.filenamer(f'data/raw_data/qwi_{geo_level}.csv'), index=False)
 
-        pep(region) \
+        pep(geo_level) \
             .query('2001 <= time <= 2020') \
-            .pipe(_pep_county_adjustments, region) \
-            .to_csv(c.filenamer(f'data/raw_data/pep_{region}.csv'), index=False)
+            .pipe(_pep_county_adjustments, geo_level) \
+            .to_csv(c.filenamer(f'data/raw_data/pep_{geo_level}.csv'), index=False)
 
 
 def s3_update():
