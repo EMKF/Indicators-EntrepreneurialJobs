@@ -23,13 +23,13 @@ def _pep_county_adjustments(df, geo_level):
 
 
 def raw_data_update(qwi_n_threads):
-    # if not consistent_releases(n_threads=qwi_n_threads):
-    #     raise Exception(
-    #         'There are multiple releases currently in use for the QWI data. '
-    #         'Please either wait for the Census to finish state updates on '
-    #         'the latest release, or assemble the data manually using the '
-    #         'files at this link: https://lehd.ces.census.gov/data/qwi/'
-    #     )
+    if not consistent_releases(n_threads=qwi_n_threads):
+        raise Exception(
+            'There are multiple releases currently in use for the QWI data. '
+            'Please either wait for the Census to finish state updates on '
+            'the latest release, or assemble the data manually using the '
+            'files at this link: https://lehd.ces.census.gov/data/qwi/'
+        )
     
     joblib.dump(
         str(pd.to_datetime('today')), 
